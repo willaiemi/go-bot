@@ -29,3 +29,11 @@ func AddTodo(userID, title string) (Todo, error) {
 
 	return todo, nil
 }
+
+func GetTodos(userID string) []Todo {
+	if _, exists := todos[userID]; !exists {
+		return []Todo{} // Return empty slice if no todos exist for the user
+	}
+
+	return todos[userID]
+}

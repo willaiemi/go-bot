@@ -25,6 +25,10 @@ var (
 				},
 			},
 		},
+		{
+			Name:        "list",
+			Description: "Lists all your TO-DO items",
+		},
 	}
 
 	commandHandlers = map[string]func(session *discordgo.Session, interaction *discordgo.InteractionCreate){
@@ -89,6 +93,51 @@ var (
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: fmt.Sprintf("Added TO-DO item: **%s** (ID: %d)", createdTodo.Title, createdTodo.ID),
+				},
+			})
+		},
+		"list": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+			var userID string
+			if interaction.Member == nil && interaction.User == nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Unable to retrieve user information.",
+					},
+				})
+				return
+			} else if interaction.Member != nil {
+				userID = interaction.Member.User.ID
+			} else {
+				userID = interaction.User.ID
+			}
+
+			todosList := todo.GetTodos(userID)
+
+			if len(todosList) == 0 {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "You have no TO-DO items. Create one with `/add`!",
+					},
+				})
+				return
+			}
+
+			responseContent := ""
+			for _, todoItem := range todosList {
+				responseContent += fmt.Sprintf(":black_small_square: **%s** (ID: %d)\n", todoItem.Title, todoItem.ID)
+			}
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "TO-DO",
+							Description: responseContent,
+							Color:       0x000370,
+						},
+					},
 				},
 			})
 		},
