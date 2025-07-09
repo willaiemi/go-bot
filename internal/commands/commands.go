@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"fmt"
+
 	"github.com/bwmarrin/discordgo"
+	"github.com/willaiemi/go-bot/internal/todo"
 )
 
 var (
@@ -9,6 +12,18 @@ var (
 		{
 			Name:        "ping",
 			Description: "Replies with Pong!",
+		},
+		{
+			Name:        "add",
+			Description: "Adds a new TO-DO item",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "title",
+					Description: "The title of the TO-DO item",
+					Required:    true,
+				},
+			},
 		},
 	}
 
@@ -18,6 +33,62 @@ var (
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "Pong!",
+				},
+			})
+		},
+		"add": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+			options := interaction.ApplicationCommandData().Options
+
+			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+			for _, opt := range options {
+				optionMap[opt.Name] = opt
+			}
+
+			titleOption, ok := optionMap["title"]
+			if !ok {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Title option is required.",
+					},
+				})
+				return
+			}
+
+			var userID string
+
+			if interaction.Member == nil && interaction.User == nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Unable to retrieve user information.",
+					},
+				})
+				return
+			} else if interaction.Member != nil {
+				userID = interaction.Member.User.ID
+			} else {
+				userID = interaction.User.ID
+			}
+
+			title := titleOption.StringValue()
+
+			createdTodo, err := todo.AddTodo(userID, title)
+
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error adding TO-DO item. Please try again.",
+					},
+				})
+				return
+			}
+
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Added TO-DO item: **%s** (ID: %d)", createdTodo.Title, createdTodo.ID),
 				},
 			})
 		},
