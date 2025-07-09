@@ -29,6 +29,18 @@ var (
 			Name:        "list",
 			Description: "Lists all your TO-DO items",
 		},
+		{
+			Name:        "done",
+			Description: "Marks a TO-DO item as done",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "id",
+					Description: "The ID of the TO-DO item to mark as done",
+					Required:    true,
+				},
+			},
+		},
 	}
 
 	commandHandlers = map[string]func(session *discordgo.Session, interaction *discordgo.InteractionCreate){
@@ -59,9 +71,8 @@ var (
 				return
 			}
 
-			var userID string
-
-			if interaction.Member == nil && interaction.User == nil {
+			userID, err := getUserID(interaction)
+			if err != nil {
 				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
@@ -69,10 +80,6 @@ var (
 					},
 				})
 				return
-			} else if interaction.Member != nil {
-				userID = interaction.Member.User.ID
-			} else {
-				userID = interaction.User.ID
 			}
 
 			title := titleOption.StringValue()
@@ -97,8 +104,8 @@ var (
 			})
 		},
 		"list": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			var userID string
-			if interaction.Member == nil && interaction.User == nil {
+			userID, err := getUserID(interaction)
+			if err != nil {
 				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
@@ -106,10 +113,6 @@ var (
 					},
 				})
 				return
-			} else if interaction.Member != nil {
-				userID = interaction.Member.User.ID
-			} else {
-				userID = interaction.User.ID
 			}
 
 			todosList := todo.GetTodos(userID)
@@ -126,7 +129,7 @@ var (
 
 			responseContent := ""
 			for _, todoItem := range todosList {
-				responseContent += fmt.Sprintf(":black_small_square: **%s** (ID: %d)\n", todoItem.Title, todoItem.ID)
+				responseContent += fmt.Sprintf("> **%s** (ID: %d)\n", todoItem.Title, todoItem.ID)
 			}
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -141,10 +144,66 @@ var (
 				},
 			})
 		},
+		"done": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+			options := interaction.ApplicationCommandData().Options
+			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+			for _, opt := range options {
+				optionMap[opt.Name] = opt
+			}
+
+			idOption, ok := optionMap["id"]
+
+			if !ok {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: ID option is required.",
+					},
+				})
+				return
+			}
+			todoID := idOption.IntValue()
+			userID, err := getUserID(interaction)
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Unable to retrieve user information.",
+					},
+				})
+				return
+			}
+
+			markedTodo, err := todo.MarkTodoDone(userID, uint32(todoID))
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("Error marking TO-DO item as done: %s", err.Error()),
+					},
+				})
+				return
+			}
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Marked TO-DO item as done: ~~**%s**~~ (ID: %d)", markedTodo.Title, markedTodo.ID),
+				},
+			})
+		},
 	}
 
 	registeredCommandsIds = make([]string, len(commands))
 )
+
+func getUserID(interaction *discordgo.InteractionCreate) (string, error) {
+	if interaction.Member != nil {
+		return interaction.Member.User.ID, nil
+	} else if interaction.User != nil {
+		return interaction.User.ID, nil
+	}
+	return "", fmt.Errorf("unable to retrieve user information")
+}
 
 func RegisterCommands(session *discordgo.Session) error {
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
