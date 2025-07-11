@@ -1,4 +1,12 @@
-BSD 3-Clause License
+# Notices
+
+This project uses third-party open source software.
+
+## discordgo
+
+This project includes code from [`discordgo`](https://github.com/bwmarrin/discordgo), which is licensed under the BSD 3-Clause License:
+
+### BSD 3-Clause License
 
 Copyright (c) 2015, Bruce Marriner
 All rights reserved.
