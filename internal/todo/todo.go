@@ -9,8 +9,24 @@ type Todo struct {
 	Done   bool
 }
 
+func (t Todo) String() string {
+	if t.Done {
+		return fmt.Sprintf(":white_check_mark: ~~**%s**~~ (ID: %d)\n\n", t.Title, t.ID)
+	} else {
+		return fmt.Sprintf(":black_small_square: **%s** (ID: %d)\n\n", t.Title, t.ID)
+	}
+}
+
 var (
 	todos = make(map[string][]Todo) // userID -> list of TO-DO items
+)
+
+type ListFilter int
+
+const (
+	ListFilterPending ListFilter = iota
+	ListFilterCompleted
+	ListFilterAll
 )
 
 func AddTodo(userID, title string) (Todo, error) {
@@ -38,6 +54,34 @@ func GetTodos(userID string) []Todo {
 	}
 
 	return todos[userID]
+}
+
+func GetFilteredTodos(userID string, filter ListFilter, highlightTodoId uint32) []Todo {
+	userTodos, exists := todos[userID]
+	if !exists {
+		return []Todo{}
+	}
+
+	var filteredTodos []Todo
+
+	switch filter {
+	case ListFilterAll:
+		return userTodos
+	case ListFilterPending:
+		for _, todo := range userTodos {
+			if todo.ID == highlightTodoId || !todo.Done {
+				filteredTodos = append(filteredTodos, todo)
+			}
+		}
+	case ListFilterCompleted:
+		for _, todo := range userTodos {
+			if todo.Done {
+				filteredTodos = append(filteredTodos, todo)
+			}
+		}
+	}
+
+	return filteredTodos
 }
 
 func MarkTodoDone(userID string, itemID uint32) (Todo, error) {
