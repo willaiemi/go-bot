@@ -18,7 +18,7 @@ var (
 	}
 
 	showPendingButton = &discordgo.Button{
-		Style: discordgo.SecondaryButton,
+		Style: discordgo.PrimaryButton,
 		Emoji: &discordgo.ComponentEmoji{
 			Name: "📜",
 		},
