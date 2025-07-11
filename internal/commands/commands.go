@@ -27,10 +27,10 @@ var (
 		},
 		{
 			Name:        "list",
-			Description: "Lists all your to-do items",
+			Description: "Lists your to-do items",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:        "filter",
+					Name:        "filter by",
 					Description: "Which items to list",
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -76,6 +76,18 @@ var (
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "title",
 					Description: "The new title of the to-do item",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "delete",
+			Description: "Deletes a to-do item",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "id",
+					Description: "The ID of the to-do item to delete",
 					Required:    true,
 				},
 			},
@@ -279,6 +291,64 @@ var (
 				interaction:     interaction,
 				listFilter:      todo.ListFilterPending,
 				highlightTodoID: editedTodo.ID,
+			})
+		},
+		"delete": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+			options := interaction.ApplicationCommandData().Options
+
+			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+			for _, opt := range options {
+				optionMap[opt.Name] = opt
+			}
+
+			idOption, ok := optionMap["id"]
+
+			if !ok {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: ID option is required.",
+					},
+				})
+				return
+			}
+
+			userID, err := getUserID(interaction)
+
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Unable to retrieve user information.",
+					},
+				})
+				return
+			}
+
+			todoID := uint32(idOption.IntValue())
+
+			deletedTodo, err := todo.DeleteTodo(userID, todoID)
+
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error deleting to-do item. Please try again.",
+					},
+				})
+				return
+			}
+
+			listFilter := todo.ListFilterPending
+
+			if deletedTodo.Done {
+				listFilter = todo.ListFilterCompleted
+			}
+
+			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
+				session:     session,
+				interaction: interaction,
+				listFilter:  listFilter,
 			})
 		},
 	}

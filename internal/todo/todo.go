@@ -34,7 +34,15 @@ func AddTodo(userID, title string) (Todo, error) {
 		todos[userID] = []Todo{}
 	}
 
-	itemID := uint32(len(todos[userID]) + 1) // Simple ID generation
+	var itemID uint32
+
+	if len(todos[userID]) > 0 {
+		for _, todo := range todos[userID] {
+			itemID = max(itemID, todo.ID+1)
+		}
+	} else {
+		itemID = 1
+	}
 
 	todo := Todo{
 		ID:     itemID,
@@ -112,4 +120,27 @@ func EditTodo(userID string, itemID uint32, newTitle string) (Todo, error) {
 	}
 
 	return Todo{}, fmt.Errorf("TO-DO item with (ID: %d) does not exist", itemID)
+}
+
+func DeleteTodo(userID string, itemID uint32) (Todo, error) {
+	userTodos, exists := todos[userID]
+
+	if !exists {
+		return Todo{}, fmt.Errorf("no to-do items found, create one with `/add`")
+	}
+
+	var updatedUserTodos []Todo
+	var deletedTodo Todo
+
+	for _, todo := range userTodos {
+		if todo.ID == itemID {
+			deletedTodo = todo
+		} else {
+			updatedUserTodos = append(updatedUserTodos, todo)
+		}
+	}
+
+	todos[userID] = updatedUserTodos
+
+	return deletedTodo, nil
 }
