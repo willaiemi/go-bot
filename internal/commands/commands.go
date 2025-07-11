@@ -503,9 +503,15 @@ func RegisterCommands(session *discordgo.Session) error {
 	return nil
 }
 
-func RemoveCommands(session *discordgo.Session) error {
-	for _, cmdID := range registeredCommandsIds {
-		err := session.ApplicationCommandDelete(session.State.User.ID, "", cmdID)
+func RemoveCommands(s *discordgo.Session) error {
+	registeredCommands, err := s.ApplicationCommands(s.State.User.ID, "")
+
+	if err != nil {
+		return err
+	}
+
+	for _, v := range registeredCommands {
+		err := s.ApplicationCommandDelete(s.State.User.ID, "", v.ID)
 		if err != nil {
 			return err
 		}
