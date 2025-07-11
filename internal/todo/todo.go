@@ -11,9 +11,9 @@ type Todo struct {
 
 func (t Todo) String() string {
 	if t.Done {
-		return fmt.Sprintf(":white_check_mark: ~~**%s**~~ (ID: %d)\n\n", t.Title, t.ID)
+		return fmt.Sprintf(":white_check_mark: ~~**%s**~~ (ID: %d)", t.Title, t.ID)
 	} else {
-		return fmt.Sprintf(":black_small_square: **%s** (ID: %d)\n\n", t.Title, t.ID)
+		return fmt.Sprintf(":black_small_square: **%s** (ID: %d)", t.Title, t.ID)
 	}
 }
 

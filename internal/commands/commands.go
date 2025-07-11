@@ -106,7 +106,7 @@ var (
 
 			title := titleOption.StringValue()
 
-			_, err = todo.AddTodo(userID, title)
+			createdTodo, err := todo.AddTodo(userID, title)
 
 			if err != nil {
 				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
@@ -119,9 +119,10 @@ var (
 			}
 
 			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:     session,
-				interaction: interaction,
-				listFilter:  todo.ListFilterPending,
+				session:         session,
+				interaction:     interaction,
+				listFilter:      todo.ListFilterPending,
+				highlightTodoID: createdTodo.ID,
 			})
 		},
 		"list": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
@@ -259,7 +260,11 @@ func respondInteractionWithTodoList(p RespondInteractionWithTodoListParams) {
 	responseContent := ""
 
 	for _, todoItem := range todosList {
-		responseContent += todoItem.String()
+		if todoItem.ID == p.highlightTodoID {
+			responseContent += fmt.Sprintf("__%s__\n\n", todoItem.String())
+		} else {
+			responseContent += fmt.Sprintf("%s\n\n", todoItem.String())
+		}
 	}
 
 	if responseContent == "" {
