@@ -380,8 +380,6 @@ var (
 			})
 		},
 	}
-
-	registeredCommandsIds = make([]string, len(commands))
 )
 
 func getUserID(interaction *discordgo.InteractionCreate) (string, error) {
@@ -492,12 +490,11 @@ func RegisterCommands(session *discordgo.Session) error {
 		}
 	})
 
-	for i, v := range commands {
-		cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", v)
+	for _, v := range commands {
+		_, err := session.ApplicationCommandCreate(session.State.User.ID, "", v)
 		if err != nil {
 			return err
 		}
-		registeredCommandsIds[i] = cmd.ID
 	}
 
 	return nil
