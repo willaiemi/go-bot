@@ -8,6 +8,31 @@ import (
 )
 
 var (
+	showCompletedButton = &discordgo.Button{
+		Style: discordgo.SuccessButton,
+		Emoji: &discordgo.ComponentEmoji{
+			Name: "✅",
+		},
+		Label:    "Show Completed",
+		CustomID: "list_completed",
+	}
+
+	showPendingButton = &discordgo.Button{
+		Style: discordgo.SecondaryButton,
+		Emoji: &discordgo.ComponentEmoji{
+			Name: "📜",
+		},
+		Label:    "Show Pending",
+		CustomID: "list_pending",
+	}
+)
+
+const (
+	darkEmbedColor    = 0x000370
+	successEmbedColor = 0x3DC13C
+)
+
+var (
 	commands = []*discordgo.ApplicationCommand{
 		{
 			Name:        "ping",
@@ -409,30 +434,25 @@ func respondInteractionWithTodoList(s *discordgo.Session, i *discordgo.Interacti
 		responseContent = emptyDefaultResponse
 	}
 
-	var button *discordgo.Button
-	var embedColor int
+	var (
+		button     *discordgo.Button
+		embedColor int
+		embedTitle string
+	)
 
 	switch o.listFilter {
 	case todo.ListFilterPending:
-		button = &discordgo.Button{
-			Style: discordgo.SuccessButton,
-			Emoji: &discordgo.ComponentEmoji{
-				Name: "✅",
-			},
-			Label:    "Show Completed",
-			CustomID: "list_completed",
-		}
-		embedColor = 0x000370
-	default:
-		button = &discordgo.Button{
-			Style: discordgo.SecondaryButton,
-			Emoji: &discordgo.ComponentEmoji{
-				Name: "📜",
-			},
-			Label:    "Show Pending",
-			CustomID: "list_pending",
-		}
-		embedColor = 0x3DC13C
+		button = showCompletedButton
+		embedColor = darkEmbedColor
+		embedTitle = "TO-DO - *Pending*"
+	case todo.ListFilterCompleted:
+		button = showPendingButton
+		embedColor = successEmbedColor
+		embedTitle = "TO-DO - *Completed*"
+	case todo.ListFilterAll:
+		button = showPendingButton
+		embedColor = successEmbedColor
+		embedTitle = "TO-DO - *All*"
 	}
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -441,7 +461,7 @@ func respondInteractionWithTodoList(s *discordgo.Session, i *discordgo.Interacti
 			Flags: discordgo.MessageFlagsEphemeral,
 			Embeds: []*discordgo.MessageEmbed{
 				{
-					Title:       "TO-DO",
+					Title:       embedTitle,
 					Description: responseContent,
 					Color:       embedColor,
 				},
