@@ -98,3 +98,18 @@ func MarkTodoDone(userID string, itemID uint32) (Todo, error) {
 
 	return Todo{}, fmt.Errorf("TO-DO item with (ID: %d) does not exist", itemID)
 }
+
+func EditTodo(userID string, itemID uint32, newTitle string) (Todo, error) {
+	if _, exists := todos[userID]; !exists {
+		return Todo{}, fmt.Errorf("no to-do items found, create one with `/add`")
+	}
+
+	for i, todo := range todos[userID] {
+		if todo.ID == itemID {
+			todos[userID][i].Title = newTitle
+			return todos[userID][i], nil
+		}
+	}
+
+	return Todo{}, fmt.Errorf("TO-DO item with (ID: %d) does not exist", itemID)
+}

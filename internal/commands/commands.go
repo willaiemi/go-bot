@@ -15,19 +15,19 @@ var (
 		},
 		{
 			Name:        "add",
-			Description: "Adds a new TO-DO item",
+			Description: "Adds a new to-do item",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "title",
-					Description: "The title of the TO-DO item",
+					Description: "The title of the to-do item",
 					Required:    true,
 				},
 			},
 		},
 		{
 			Name:        "list",
-			Description: "Lists all your TO-DO items",
+			Description: "Lists all your to-do items",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Name:        "filter",
@@ -52,12 +52,30 @@ var (
 		},
 		{
 			Name:        "done",
-			Description: "Marks a TO-DO item as done",
+			Description: "Marks a to-do item as done",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Name:        "id",
-					Description: "The ID of the TO-DO item to mark as done",
+					Description: "The ID of the to-do item to mark as done",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "edit",
+			Description: "Edits a to-do item title",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "id",
+					Description: "The ID of the to-do item to edit",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "title",
+					Description: "The new title of the to-do item",
 					Required:    true,
 				},
 			},
@@ -112,7 +130,7 @@ var (
 				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: "Error adding TO-DO item. Please try again.",
+						Content: "Error adding to-do item. Please try again.",
 					},
 				})
 				return
@@ -184,7 +202,7 @@ var (
 				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("Error marking TO-DO item as done: %s", err.Error()),
+						Content: fmt.Sprintf("Error marking to-do item as done: %s", err.Error()),
 					},
 				})
 				return
@@ -195,6 +213,72 @@ var (
 				interaction:     interaction,
 				listFilter:      todo.ListFilterPending,
 				highlightTodoID: todoID,
+			})
+		},
+		"edit": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+			options := interaction.ApplicationCommandData().Options
+
+			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+			for _, opt := range options {
+				optionMap[opt.Name] = opt
+			}
+
+			idOption, ok := optionMap["id"]
+
+			if !ok {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: ID option is required.",
+					},
+				})
+				return
+			}
+
+			titleOption, ok := optionMap["title"]
+
+			if !ok {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Title option is required.",
+					},
+				})
+				return
+			}
+
+			userID, err := getUserID(interaction)
+
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error: Unable to retrieve user information.",
+					},
+				})
+				return
+			}
+
+			todoID := uint32(idOption.IntValue())
+			title := titleOption.StringValue()
+
+			editedTodo, err := todo.EditTodo(userID, todoID, title)
+
+			if err != nil {
+				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Error editing to-do item. Please try again.",
+					},
+				})
+				return
+			}
+
+			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
+				session:         session,
+				interaction:     interaction,
+				listFilter:      todo.ListFilterPending,
+				highlightTodoID: editedTodo.ID,
 			})
 		},
 	}
