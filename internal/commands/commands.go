@@ -95,16 +95,16 @@ var (
 	}
 
 	commandHandlers = map[string]func(session *discordgo.Session, interaction *discordgo.InteractionCreate){
-		"ping": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+		"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "Pong!",
 				},
 			})
 		},
-		"add": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			options := interaction.ApplicationCommandData().Options
+		"add": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			options := i.ApplicationCommandData().Options
 
 			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 			for _, opt := range options {
@@ -113,7 +113,7 @@ var (
 
 			titleOption, ok := optionMap["title"]
 			if !ok {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Title option is required.",
@@ -122,10 +122,10 @@ var (
 				return
 			}
 
-			userID, err := getUserID(interaction)
+			userID, err := getUserID(i)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Unable to retrieve user information.",
@@ -139,7 +139,7 @@ var (
 			createdTodo, err := todo.AddTodo(userID, title)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error adding to-do item. Please try again.",
@@ -148,17 +148,15 @@ var (
 				return
 			}
 
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:         session,
-				interaction:     interaction,
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
 				listFilter:      todo.ListFilterPending,
 				highlightTodoID: createdTodo.ID,
 			})
 		},
-		"list": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		"list": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			listFilter := todo.ListFilterPending
 
-			options := interaction.ApplicationCommandData().Options
+			options := i.ApplicationCommandData().Options
 
 			if len(options) > 0 {
 				switch int(options[0].IntValue()) {
@@ -169,14 +167,12 @@ var (
 				}
 			}
 
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:     session,
-				interaction: interaction,
-				listFilter:  listFilter,
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
+				listFilter: listFilter,
 			})
 		},
-		"done": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			options := interaction.ApplicationCommandData().Options
+		"done": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			options := i.ApplicationCommandData().Options
 			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 			for _, opt := range options {
 				optionMap[opt.Name] = opt
@@ -185,7 +181,7 @@ var (
 			idOption, ok := optionMap["id"]
 
 			if !ok {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: ID option is required.",
@@ -196,10 +192,10 @@ var (
 
 			todoID := uint32(idOption.IntValue())
 
-			userID, err := getUserID(interaction)
+			userID, err := getUserID(i)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Unable to retrieve user information.",
@@ -211,7 +207,7 @@ var (
 			_, err = todo.MarkTodoDone(userID, todoID)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: fmt.Sprintf("Error marking to-do item as done: %s", err.Error()),
@@ -220,15 +216,13 @@ var (
 				return
 			}
 
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:         session,
-				interaction:     interaction,
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
 				listFilter:      todo.ListFilterPending,
 				highlightTodoID: todoID,
 			})
 		},
-		"edit": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			options := interaction.ApplicationCommandData().Options
+		"edit": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			options := i.ApplicationCommandData().Options
 
 			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 			for _, opt := range options {
@@ -238,7 +232,7 @@ var (
 			idOption, ok := optionMap["id"]
 
 			if !ok {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: ID option is required.",
@@ -250,7 +244,7 @@ var (
 			titleOption, ok := optionMap["title"]
 
 			if !ok {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Title option is required.",
@@ -259,10 +253,10 @@ var (
 				return
 			}
 
-			userID, err := getUserID(interaction)
+			userID, err := getUserID(i)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Unable to retrieve user information.",
@@ -277,7 +271,7 @@ var (
 			editedTodo, err := todo.EditTodo(userID, todoID, title)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error editing to-do item. Please try again.",
@@ -286,15 +280,13 @@ var (
 				return
 			}
 
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:         session,
-				interaction:     interaction,
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
 				listFilter:      todo.ListFilterPending,
 				highlightTodoID: editedTodo.ID,
 			})
 		},
-		"delete": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			options := interaction.ApplicationCommandData().Options
+		"delete": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			options := i.ApplicationCommandData().Options
 
 			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 			for _, opt := range options {
@@ -304,7 +296,7 @@ var (
 			idOption, ok := optionMap["id"]
 
 			if !ok {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: ID option is required.",
@@ -313,10 +305,10 @@ var (
 				return
 			}
 
-			userID, err := getUserID(interaction)
+			userID, err := getUserID(i)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error: Unable to retrieve user information.",
@@ -330,7 +322,7 @@ var (
 			deletedTodo, err := todo.DeleteTodo(userID, todoID)
 
 			if err != nil {
-				session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Content: "Error deleting to-do item. Please try again.",
@@ -345,27 +337,21 @@ var (
 				listFilter = todo.ListFilterCompleted
 			}
 
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:     session,
-				interaction: interaction,
-				listFilter:  listFilter,
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
+				listFilter: listFilter,
 			})
 		},
 	}
 
-	componentHandlers = map[string]func(session *discordgo.Session, interaction *discordgo.InteractionCreate){
-		"list_completed": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:     session,
-				interaction: interaction,
-				listFilter:  todo.ListFilterCompleted,
+	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"list_completed": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
+				listFilter: todo.ListFilterCompleted,
 			})
 		},
-		"list_pending": func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-			respondInteractionWithTodoList(RespondInteractionWithTodoListParams{
-				session:     session,
-				interaction: interaction,
-				listFilter:  todo.ListFilterPending,
+		"list_pending": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			respondInteractionWithTodoList(s, i, RespondInteractionWithTodoListOptions{
+				listFilter: todo.ListFilterPending,
 			})
 		},
 	}
@@ -382,24 +368,22 @@ func getUserID(interaction *discordgo.InteractionCreate) (string, error) {
 	return "", fmt.Errorf("unable to retrieve user information")
 }
 
-type RespondInteractionWithTodoListParams struct {
-	session         *discordgo.Session
-	interaction     *discordgo.InteractionCreate
+type RespondInteractionWithTodoListOptions struct {
 	highlightTodoID uint32
 	listFilter      todo.ListFilter
 }
 
-func respondInteractionWithTodoList(p RespondInteractionWithTodoListParams) {
+func respondInteractionWithTodoList(s *discordgo.Session, i *discordgo.InteractionCreate, o RespondInteractionWithTodoListOptions) {
 	emptyDefaultResponse := "No to-do items. Add one with `/add`!"
 
-	if p.listFilter == todo.ListFilterCompleted {
+	if o.listFilter == todo.ListFilterCompleted {
 		emptyDefaultResponse = "No completed to-do items. Complete a to-do with `/done`!"
 	}
 
-	userID, err := getUserID(p.interaction)
+	userID, err := getUserID(i)
 
 	if err != nil {
-		p.session.InteractionRespond(p.interaction.Interaction, &discordgo.InteractionResponse{
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Flags:   discordgo.MessageFlagsEphemeral,
@@ -409,12 +393,12 @@ func respondInteractionWithTodoList(p RespondInteractionWithTodoListParams) {
 		return
 	}
 
-	todosList := todo.GetFilteredTodos(userID, p.listFilter, p.highlightTodoID)
+	todosList := todo.GetFilteredTodos(userID, o.listFilter, o.highlightTodoID)
 
 	responseContent := ""
 
 	for _, todoItem := range todosList {
-		if todoItem.ID == p.highlightTodoID {
+		if todoItem.ID == o.highlightTodoID {
 			responseContent += fmt.Sprintf("__%s__\n\n", todoItem.String())
 		} else {
 			responseContent += fmt.Sprintf("%s\n\n", todoItem.String())
@@ -428,7 +412,7 @@ func respondInteractionWithTodoList(p RespondInteractionWithTodoListParams) {
 	var button *discordgo.Button
 	var embedColor int
 
-	switch p.listFilter {
+	switch o.listFilter {
 	case todo.ListFilterPending:
 		button = &discordgo.Button{
 			Style: discordgo.SuccessButton,
@@ -451,7 +435,7 @@ func respondInteractionWithTodoList(p RespondInteractionWithTodoListParams) {
 		embedColor = 0x3DC13C
 	}
 
-	p.session.InteractionRespond(p.interaction.Interaction, &discordgo.InteractionResponse{
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Flags: discordgo.MessageFlagsEphemeral,
